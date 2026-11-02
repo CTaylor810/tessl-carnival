@@ -6,6 +6,8 @@
  * screen, +x runs down-right and +y runs down-left.
  */
 
+import type { MidwayWorld } from './flip';
+
 export const TILE_W = 32;
 export const TILE_H = 16;
 
@@ -50,7 +52,8 @@ export type PropKind =
   | 'bunting-pole'
   | 'billboard'
   | 'jack-o-lantern'
-  | 'food-stand';
+  | 'food-stand'
+  | 'flip-tent';
 
 export interface Prop extends Rect {
   kind: PropKind;
@@ -69,6 +72,8 @@ export interface MidwayMap {
   props: Prop[];
   /** Pairs of poles with a string of bunting hung between them. */
   bunting: [Point, Point][];
+  /** The open tile in the flip tent's doorway; walking onto it flips the world. */
+  flipDoorway: Point;
   /** The first x of the two-tile avenue; the gate sits at its south end. */
   avenueX: number;
   spawn: Point;
@@ -196,7 +201,12 @@ export function layoutMidway(gameIds: readonly string[]): MidwayMap {
   add('peaked-tent', 18, side, 4, 3, 1);
   add('cart', 17, side + 4, 1, 1, 1);
   add('cart', 21, side + 4, 1, 1, 2);
-  add('bench', 19, side + 5);
+  add('bench', 22, side + 5);
+  // The flip tent, between the carts across the grass from the right-hand
+  // booths. Its doorway faces the cross path and is the one tile you can enter.
+  add('flip-tent', 18, side + 3, 3, 3);
+  const flipDoorway = { x: 19, y: side + 5 };
+  blocked[flipDoorway.y * width + flipDoorway.x] = false;
   // Each extra row of booths gets a little more scenery beside it.
   for (let band = 2; band < rows; band++) {
     const y = side + band * ROW_SPACING;
@@ -234,10 +244,37 @@ export function layoutMidway(gameIds: readonly string[]): MidwayMap {
     booths,
     props,
     bunting,
+    flipDoorway,
     avenueX: AVENUE_X,
     // Just inside the gate, off to the side so the arch doesn't hide the player.
     spawn: { x: AVENUE_X + 3.5, y: height - 3 },
   };
+}
+
+/** Whether a prop is out in a world: the jack-o'-lanterns only come out upside down. */
+export function inWorld(prop: Prop, world: MidwayWorld): boolean {
+  return prop.kind !== 'jack-o-lantern' || world === 'upside-down';
+}
+
+/**
+ * Blocks the tiles of the props that are out in a world and opens the tiles of
+ * the ones that aren't, so nobody walks into a jack-o'-lantern that isn't
+ * there. A new map has every prop out.
+ */
+export function enterWorld(map: MidwayMap, world: MidwayWorld) {
+  for (const prop of map.props) {
+    if (prop.kind !== 'jack-o-lantern') continue;
+    for (let y = prop.y; y < prop.y + prop.h; y++) {
+      for (let x = prop.x; x < prop.x + prop.w; x++) {
+        map.blocked[y * map.width + x] = inWorld(prop, world);
+      }
+    }
+  }
+}
+
+/** Whether a position is on the flip tent's doorway tile. */
+export function onFlipDoorway(map: MidwayMap, point: Point): boolean {
+  return Math.floor(point.x) === map.flipDoorway.x && Math.floor(point.y) === map.flipDoorway.y;
 }
 
 /** Tile position to isometric screen pixels, relative to tile (0, 0)'s top corner. */

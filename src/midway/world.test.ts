@@ -4,11 +4,14 @@ import {
   canStand,
   createVisitors,
   createWalker,
+  enterWorld,
   findPath,
   followPath,
   inputDirection,
+  inWorld,
   isBlocked,
   layoutMidway,
+  onFlipDoorway,
   pathToBooth,
   seededRandom,
   toScreen,
@@ -136,6 +139,86 @@ describe('layoutMidway', () => {
           pathToBooth(map, map.spawn, booth),
           `${count} games: booth ${booth.index}`,
         ).toBeDefined();
+      }
+    }
+  });
+
+  it('puts a flip tent beside the avenue, clear of everything, with a walkable doorway', () => {
+    for (const count of [0, 1, 4, 9, 15]) {
+      const map = layoutMidway(Array.from({ length: count }, (_, i) => `game-${i}`));
+      const tents = map.props.filter((p) => p.kind === 'flip-tent');
+      expect(tents, `${count} games`).toHaveLength(1);
+      const tent = tents[0];
+      expect([tent.w, tent.h]).toEqual([3, 3]);
+      for (const other of [...map.booths, ...map.props]) {
+        if (other === tent) continue;
+        const overlaps =
+          other.x < tent.x + tent.w &&
+          tent.x < other.x + other.w &&
+          other.y < tent.y + tent.h &&
+          tent.y < other.y + other.h;
+        expect(overlaps, `${count} games: overlaps ${JSON.stringify(other)}`).toBe(false);
+      }
+
+      // Every tile is blocked but the doorway, which sits on the tent's edge.
+      const door = map.flipDoorway;
+      for (let y = tent.y; y < tent.y + tent.h; y++) {
+        for (let x = tent.x; x < tent.x + tent.w; x++) {
+          expect(map.ground[y * map.width + x]).toBe('grass');
+          expect(isBlocked(map, x, y), `${x},${y}`).toBe(x !== door.x || y !== door.y);
+        }
+      }
+      expect(door.y).toBe(tent.y + tent.h - 1);
+
+      // The avenue stays clear, and the doorway and every booth can be walked to.
+      for (let y = 6; y < map.height - 1; y++) {
+        expect(isBlocked(map, map.avenueX, y)).toBe(false);
+        expect(isBlocked(map, map.avenueX + 1, y)).toBe(false);
+      }
+      expect(tent.x).toBeGreaterThan(map.avenueX + 1);
+      const toDoor = findPath(map, map.spawn, { x: door.x + 0.5, y: door.y + 0.5 });
+      expect(toDoor, `${count} games: doorway`).toBeDefined();
+      expect(onFlipDoorway(map, toDoor!.at(-1)!)).toBe(true);
+      for (const booth of map.booths) {
+        const path = pathToBooth(map, map.spawn, booth);
+        expect(path, `${count} games: booth ${booth.index}`).toBeDefined();
+        expect(path!.some((step) => onFlipDoorway(map, step))).toBe(false);
+      }
+    }
+  });
+
+  it('only stands on the doorway, not beside it', () => {
+    const map = layoutMidway(['water-cannon']);
+    const door = map.flipDoorway;
+    expect(onFlipDoorway(map, { x: door.x + 0.5, y: door.y + 0.5 })).toBe(true);
+    expect(onFlipDoorway(map, { x: door.x + 0.5, y: door.y + 1.5 })).toBe(false);
+    expect(onFlipDoorway(map, map.spawn)).toBe(false);
+    expect(canStand(map, door.x + 0.5, door.y + 0.5)).toBe(true);
+  });
+
+  it("only puts the jack-o'-lanterns out in the upside-down world", () => {
+    const map = layoutMidway(['water-cannon']);
+    const lanterns = map.props.filter((p) => p.kind === 'jack-o-lantern');
+    enterWorld(map, 'right-side-up');
+    for (const lantern of lanterns) {
+      expect(inWorld(lantern, 'right-side-up')).toBe(false);
+      expect(isBlocked(map, lantern.x, lantern.y)).toBe(false);
+    }
+    expect(
+      inWorld(
+        map.props.find((p) => p.kind === 'flip-tent')!,
+        'right-side-up',
+      ),
+    ).toBe(true);
+    enterWorld(map, 'upside-down');
+    for (const lantern of lanterns) {
+      expect(inWorld(lantern, 'upside-down')).toBe(true);
+      expect(isBlocked(map, lantern.x, lantern.y)).toBe(true);
+    }
+    for (const world of ['right-side-up', 'upside-down'] as const) {
+      enterWorld(map, world);
+      for (const booth of map.booths) {
+        expect(pathToBooth(map, map.spawn, booth), `${world}: booth ${booth.index}`).toBeDefined();
       }
     }
   });

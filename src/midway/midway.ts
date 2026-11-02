@@ -1,4 +1,13 @@
-import { palette } from './palette';
+import { setThemeMode } from '../carnival';
+import {
+  createFlip,
+  flipScale,
+  isFlipping,
+  stepFlip,
+  tryStartFlip,
+  type MidwayWorld,
+} from './flip';
+import { palette, usePalette } from './palette';
 import {
   archBounds,
   BOOTH_SIGN_HEIGHT,
@@ -14,11 +23,12 @@ import {
   drawMonster,
   drawMoon,
   drawProp,
+  drawSun,
   drawWalker,
   groundBounds,
   HORIZON,
   label,
-  PLAYER_LOOK,
+  playerLook,
   propBounds,
   visitorLook,
   type Box,
@@ -30,10 +40,13 @@ import {
   boothInReach,
   createVisitors,
   createWalker,
+  enterWorld,
   findPath,
   followPath,
   inputDirection,
+  inWorld,
   layoutMidway,
+  onFlipDoorway,
   pathToBooth,
   strollTiles,
   toScreen,
@@ -76,12 +89,25 @@ const MIN_QUALITY = 0.5;
 
 /** Where the player stood when they last left the midway, for this page load. */
 let returnTo: Point | undefined;
+/**
+ * The world the midway was in when the player last left it, for this page
+ * load. A fresh page always starts right side up.
+ */
+let returnWorld: MidwayWorld = 'right-side-up';
+
+/** The carnival theme each world uses. */
+const THEME_MODES = { 'right-side-up': 'day', 'upside-down': 'halloween' } as const;
+// The carnival always starts right side up, even on a page that opens a game.
+setThemeMode(THEME_MODES[returnWorld]);
 
 export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): MidwayControls {
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D is not available');
 
   const map = layoutMidway(options.games.map((g) => g.id));
+  const flip = createFlip(returnWorld);
+  // Arriving on the doorway, say back from a game, doesn't flip straight away.
+  flip.armed = !onFlipDoorway(map, returnTo ?? map.spawn);
   const names = new Map(options.games.map((g) => [g.id, g.name]));
   const player = createWalker(returnTo ?? map.spawn);
   // Booths and scenery never move, so work out where each one sits once.
@@ -99,6 +125,14 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
       name: '',
     })),
   ];
+  const enter = (world: MidwayWorld) => {
+    returnWorld = world;
+    setThemeMode(THEME_MODES[world]);
+    usePalette(world);
+    enterWorld(map, world);
+    // The ground layer is drawn in the palette's colours, so redraw it once.
+    if (ground) ground = drawGroundLayer(map, zoom * dpr);
+  };
   const strolls = strollTiles(map);
   const visitors = createVisitors(map, 9, Math.random);
   const clouds: Cloud[] = Array.from({ length: 9 }, (_, i) => ({
@@ -138,6 +172,7 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
     view = { w: canvas.clientWidth / zoom, h: canvas.clientHeight / zoom };
     ground = drawGroundLayer(map, zoom * dpr);
   };
+  enter(flip.world);
   const observer = new ResizeObserver(resize);
   observer.observe(canvas);
   resize();
@@ -153,6 +188,7 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
     target instanceof HTMLElement && target.closest('a, button, input, textarea, select') !== null;
   const onKeyDown = (event: KeyboardEvent) => {
     if (event.metaKey || event.ctrlKey || event.altKey) return;
+    if (isFlipping(flip)) return;
     if (event.code in MOVE_KEYS) {
       keys.add(event.code);
       player.path = [];
@@ -194,6 +230,7 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
   };
 
   const onPointerDown = (event: PointerEvent) => {
+    if (isFlipping(flip)) return;
     const point = toWorld(event);
     const booth = boothAt(point);
     if (!booth && billboardAt(point)) {
@@ -263,9 +300,20 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
   };
 
   const draw = (t: number) => {
-    // The night sky, the moon, something huge rising behind the horizon, and
-    // clouds drifting slowly in front of it.
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // Mid-flip, the whole view squashes towards its middle like a card turning.
+    const s = flipScale(flip);
+    const lift = (canvas.clientHeight * (1 - s)) / 2;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    if (s < 1) {
+      ctx.fillStyle = palette.black;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    const night = flip.world === 'upside-down';
+
+    // The sky: by day the sun and white clouds; upside down, the moon,
+    // something huge rising behind the horizon, and clouds drifting slowly in
+    // front of it.
+    ctx.setTransform(dpr, 0, 0, dpr * s, 0, dpr * lift);
     const horizon = (HORIZON - camera.y) * zoom;
     const sky = ctx.createLinearGradient(0, horizon - 260 * zoom, 0, horizon);
     sky.addColorStop(0, palette.skyHigh);
@@ -273,9 +321,13 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, canvas.clientWidth, Math.max(0, horizon + 2));
 
-    ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, 0, 0);
-    drawMoon(ctx, view.w * 0.78 - camera.x * 0.05, HORIZON - camera.y - 120, 18);
-    drawMonster(ctx, view.w * 0.32 - camera.x * 0.15, HORIZON - camera.y, 140, calm ? 0 : t);
+    ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom * s, 0, dpr * lift);
+    if (night) {
+      drawMoon(ctx, view.w * 0.78 - camera.x * 0.05, HORIZON - camera.y - 120, 18);
+      drawMonster(ctx, view.w * 0.32 - camera.x * 0.15, HORIZON - camera.y, 140, calm ? 0 : t);
+    } else {
+      drawSun(ctx, view.w * 0.78 - camera.x * 0.05, HORIZON - camera.y - 120, 16, calm ? 0 : t);
+    }
     const span = view.w + 200;
     for (const cloud of clouds) {
       const x =
@@ -290,11 +342,13 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
     const k = dpr * zoom;
     const cam = { x: Math.round(camera.x * k) / k, y: Math.round(camera.y * k) / k };
     const visible: Box = { left: cam.x, top: cam.y, right: cam.x + view.w, bottom: cam.y + view.h };
-    ctx.setTransform(k, 0, 0, k, -cam.x * k, -cam.y * k);
+    const scene = () =>
+      ctx.setTransform(k, 0, 0, k * s, -cam.x * k, (lift - cam.y * zoom * s) * dpr);
+    scene();
     drawField(ctx, visible);
     if (ground) {
       const bounds = groundBounds(map);
-      if (ground.scale === k) {
+      if (ground.scale === k && s === 1) {
         // Pixel for pixel, at a whole-pixel offset, so it stays crisp.
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.drawImage(
@@ -302,7 +356,7 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
           Math.round((bounds.left - cam.x) * k),
           Math.round((bounds.top - cam.y) * k),
         );
-        ctx.setTransform(k, 0, 0, k, -cam.x * k, -cam.y * k);
+        scene();
       } else {
         // A midway too long to pre-draw at full sharpness: stretch it to fit.
         ctx.drawImage(
@@ -362,15 +416,15 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
       {
         depth: playerDepth,
         box: walkerBox(player),
-        draw: () => drawWalker(ctx, player, PLAYER_LOOK, true, t),
+        draw: () => drawWalker(ctx, player, playerLook(), true, t),
       },
     ];
     for (const item of scenery) {
-      if (!onScreen(item.box)) continue;
+      if (!onScreen(item.box) || (item.prop && !inWorld(item.prop, flip.world))) continue;
       const { depth, box, booth, prop, name } = item;
       const paint = booth
         ? () => drawBooth(ctx, booth, name, t, booth === inReach)
-        : () => drawProp(ctx, prop!, t);
+        : () => drawProp(ctx, prop!, t, flip.world);
       drawables.push({ depth, box, draw: () => faded(box, depth, paint) });
     }
     drawables
@@ -384,7 +438,7 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
     drawFloaters(ctx, floaters);
 
     // The prompt over the booth in reach, at full resolution.
-    if (inReach?.gameId) {
+    if (inReach?.gameId && s === 1) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       const c = toScreen(inReach.x + 1, inReach.y + 1);
       label(
@@ -414,16 +468,29 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
       resize();
     }
 
-    let right = 0;
-    let down = 0;
-    for (const code of keys) {
-      right += MOVE_KEYS[code][0];
-      down += MOVE_KEYS[code][1];
+    if (isFlipping(flip)) {
+      // Input pauses while the midway turns over; the player stays put.
+      player.walking = false;
+      if (stepFlip(flip, dt)) enter(flip.world);
+    } else {
+      let right = 0;
+      let down = 0;
+      for (const code of keys) {
+        right += MOVE_KEYS[code][0];
+        down += MOVE_KEYS[code][1];
+      }
+      const direction = inputDirection(Math.sign(right), Math.sign(down));
+      if (direction.x !== 0 || direction.y !== 0) walk(map, player, direction, dt);
+      else if (player.path.length > 0) followPath(player, dt);
+      else player.walking = false;
+
+      if (tryStartFlip(flip, onFlipDoorway(map, player), calm)) {
+        player.path = [];
+        destination = undefined;
+        keys.clear();
+        if (calm) enter(flip.world);
+      }
     }
-    const direction = inputDirection(Math.sign(right), Math.sign(down));
-    if (direction.x !== 0 || direction.y !== 0) walk(map, player, direction, dt);
-    else if (player.path.length > 0) followPath(player, dt);
-    else player.walking = false;
 
     for (const visitor of visitors) updateVisitor(map, visitor, dt, Math.random, strolls);
 

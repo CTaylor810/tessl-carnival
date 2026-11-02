@@ -1,5 +1,5 @@
 import './style.css';
-import { applyTheme, bestScore, type CarnivalGame } from './carnival';
+import { applyTheme, bestScore, onThemeChange, themeMode, type CarnivalGame } from './carnival';
 import { registry } from './games';
 import { startMidway } from './midway/midway';
 import type { BoothSlot } from './midway/world';
@@ -21,7 +21,7 @@ function renderMidway() {
     <section class="midway">
       <canvas class="midway-map" aria-label="The carnival midway. Walk up to a booth to play its game."></canvas>
       <p class="midway-help">
-        Happy Halloween!
+        <span class="greeting"></span>
         <kbd>WASD</kbd> or <kbd>arrows</kbd> to walk, or click where you want to go.
         <kbd>E</kbd> to play.
       </p>
@@ -69,6 +69,15 @@ function renderMidway() {
     guide.append(item);
   }
 
+  // The greeting follows the world the flip tent has the midway in.
+  const greeting = app.querySelector<HTMLElement>('.greeting')!;
+  const greet = () => {
+    greeting.textContent =
+      themeMode() === 'halloween' ? 'Happy Halloween!' : 'Welcome to the fair!';
+  };
+  greet();
+  const stopGreeting = onThemeChange(greet);
+
   const card = app.querySelector<HTMLElement>('.booth-card')!;
   const showBooth = (booth: BoothSlot | undefined) => {
     const game = booth?.gameId ? registry.get(booth.gameId) : undefined;
@@ -88,7 +97,10 @@ function renderMidway() {
     onPlay: (gameId) => (location.hash = `#/play/${gameId}`),
     onReach: showBooth,
   });
-  stop = midway.stop;
+  stop = () => {
+    midway.stop();
+    stopGreeting();
+  };
 }
 
 function renderGame(game: CarnivalGame) {
