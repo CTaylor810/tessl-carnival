@@ -48,7 +48,8 @@ export type PropKind =
   | 'planter'
   | 'balloons'
   | 'bunting-pole'
-  | 'billboard';
+  | 'billboard'
+  | 'jack-o-lantern';
 
 export interface Prop extends Rect {
   kind: PropKind;
@@ -212,6 +213,14 @@ export function layoutMidway(gameIds: readonly string[]): MidwayMap {
   add('balloons', 22, entrance + 4);
   add('planter', 15, entrance);
   add('planter', 1, height - 2);
+
+  // Jack-o'-lanterns for Halloween, out on the grass and clear of the paths.
+  add('jack-o-lantern', 3, 5);
+  add('jack-o-lantern', 7, 5, 1, 1, 1);
+  add('jack-o-lantern', 16, 5, 1, 1, 2);
+  add('jack-o-lantern', 17, side + 2, 1, 1, 1);
+  add('jack-o-lantern', 7, height - 2, 1, 1, 2);
+  add('jack-o-lantern', 16, height - 2);
 
   return {
     width,

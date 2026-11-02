@@ -83,6 +83,25 @@ describe('layoutMidway', () => {
     }
   });
 
+  it("sets out jack-o'-lanterns on the grass without blocking the avenue or any booth", () => {
+    for (const count of [0, 1, 4, 9]) {
+      const map = layoutMidway(Array.from({ length: count }, (_, i) => `game-${i}`));
+      const lanterns = map.props.filter((p) => p.kind === 'jack-o-lantern');
+      expect(lanterns.length).toBeGreaterThan(0);
+      for (const lantern of lanterns) {
+        expect(map.ground[lantern.y * map.width + lantern.x]).toBe('grass');
+        expect(lantern.x === map.avenueX || lantern.x === map.avenueX + 1).toBe(false);
+      }
+      expect(canStand(map, map.spawn.x, map.spawn.y)).toBe(true);
+      for (const booth of map.booths) {
+        expect(
+          pathToBooth(map, map.spawn, booth),
+          `${count} games: booth ${booth.index}`,
+        ).toBeDefined();
+      }
+    }
+  });
+
   it('is the same on every visit', () => {
     expect(layoutMidway(['a'])).toEqual(layoutMidway(['a']));
   });
