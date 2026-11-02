@@ -1,5 +1,6 @@
 import { canvasFont, theme } from '../carnival';
 import bannerUrl from './aidevcon-banner.png';
+import type { MidwayWorld } from './flip';
 import { palette } from './palette';
 import {
   CART_KINDS,
@@ -370,24 +371,24 @@ interface Stripes {
   bShade: string;
 }
 
-const RED: Stripes = {
+const RED = (): Stripes => ({
   a: palette.red,
   aShade: palette.redShade,
   b: palette.cream,
   bShade: palette.creamShade,
-};
-const GOLD: Stripes = {
+});
+const GOLD = (): Stripes => ({
   a: palette.gold,
   aShade: palette.goldShade,
   b: palette.cream,
   bShade: palette.creamShade,
-};
-const BLUE: Stripes = {
+});
+const BLUE = (): Stripes => ({
   a: palette.blue,
   aShade: palette.blueShade,
   b: palette.cream,
   bShade: palette.creamShade,
-};
+});
 const TENT_COLORS = [GOLD, BLUE, BLUE, RED] as const;
 
 function rimPoint(c: Pt, r: number, angle: number, z: number): Pt {
@@ -529,7 +530,7 @@ function roundTent(
 function bigTop(ctx: Ctx, prop: Prop, t: number) {
   const cx = prop.x + prop.w / 2;
   const cy = prop.y + prop.h / 2;
-  roundTent(ctx, cx, cy, 1.9, 38, 46, RED, t, palette.red);
+  roundTent(ctx, cx, cy, 1.9, 38, 46, RED(), t, palette.red);
   const c = at(cx, cy);
   // A second ring of bunting, and gold lights round the wall.
   ringFlags(ctx, c, 1.5, 38 + 22, t, 12);
@@ -547,7 +548,7 @@ function carousel(ctx: Ctx, prop: Prop, t: number) {
   const turn = t * 0.5;
   const r = 1.75;
   oval(ctx, c[0] + 8, c[1] + 4, r * ISO_RX * 1.1, r * ISO_RY * 1.1, palette.shadow);
-  cylinder(ctx, c, r, 0, 6, RED, 24);
+  cylinder(ctx, c, r, 0, 6, RED(), 24);
   oval(ctx, c[0], c[1] - 6, r * ISO_RX, r * ISO_RY, palette.pink);
   oval(ctx, c[0], c[1] - 6, r * ISO_RX * 0.82, r * ISO_RY * 0.82, palette.pinkShade);
 
@@ -635,7 +636,7 @@ function carousel(ctx: Ctx, prop: Prop, t: number) {
   );
   horses.filter((h) => Math.sin(h.angle) >= 0).forEach(drawHorse);
 
-  dome(ctx, c, r * 1.15, roofZ, 26, RED, turn);
+  dome(ctx, c, r * 1.15, roofZ, 26, RED(), turn);
   scallopRing(ctx, c, r * 1.15, roofZ, 14, 4, [palette.red, palette.cream]);
   ringFlags(ctx, c, r * 1.05, roofZ - 6, t, 16);
   knob(ctx, c[0], c[1] - roofZ - 26);
@@ -646,7 +647,7 @@ function carousel(ctx: Ctx, prop: Prop, t: number) {
 
 /** A tent with a ridged roof running along the x axis. */
 function peakedTent(ctx: Ctx, prop: Prop, t: number) {
-  const colors = prop.variant % 2 === 0 ? BLUE : RED;
+  const colors = prop.variant % 2 === 0 ? BLUE() : RED();
   const x0 = prop.x + 0.2;
   const x1 = prop.x + prop.w - 0.2;
   const y0 = prop.y + 0.25;
@@ -949,7 +950,7 @@ function cart(ctx: Ctx, prop: Prop, t: number) {
     }
   } else if (kind === 2) {
     stroke(ctx, [top, [top[0], top[1] - 22]], palette.metalShade, 1.2);
-    dome(ctx, [top[0], top[1] - 18], 0.75, 0, 9, BLUE, 0, 10);
+    dome(ctx, [top[0], top[1] - 18], 0.75, 0, 9, BLUE(), 0, 10);
     for (let i = 0; i < 3; i++)
       oval(
         ctx,
@@ -1246,6 +1247,99 @@ function jackOLantern(ctx: Ctx, prop: Prop, t: number) {
   ctx.globalAlpha = 1;
 }
 
+/**
+ * The flip tent: a lopsided striped tent with a crooked spire and one open
+ * doorway on its front-left face. By day it's purple and gold with a gold
+ * glow inside; upside down it's dark and torn, glowing red from within.
+ */
+function flipTent(ctx: Ctx, prop: Prop, t: number, world: MidwayWorld) {
+  const upsideDown = world === 'upside-down';
+  const x0 = prop.x + 0.15;
+  const x1 = prop.x + prop.w - 0.15;
+  const y0 = prop.y + 0.15;
+  const y1 = prop.y + prop.h - 0.15;
+  // The doorway is the middle tile of the front face.
+  const d0 = prop.x + 1;
+  const d1 = prop.x + 2;
+  const wall = 22;
+  const stripes = [palette.flipTent, palette.flipStripe];
+  const shades = [palette.flipTentShade, palette.flipStripeShade];
+
+  poly(ctx, rectPoints({ x: x0 + 0.3, y: y0 + 0.3, w: x1 - x0, h: y1 - y0 }), palette.shadow);
+  // The right-hand face, in shade.
+  stripedWall(ctx, { x: x1, y: y1 }, { x: x1, y: y0 }, 0, wall, 9, shades);
+  // The doorway, set back into the tent, glowing from inside.
+  const pulse = 0.6 + Math.sin(t * 3) * 0.4;
+  poly(
+    ctx,
+    [at(d0, y1, 0), at(d1, y1, 0), at(d1, y1, wall - 2), at(d0, y1, wall - 2)],
+    palette.opening,
+  );
+  ctx.globalAlpha = pulse;
+  poly(
+    ctx,
+    [at(d0 + 0.15, y1, 0), at(d1 - 0.15, y1, 0), at((d0 + d1) / 2, y1, wall + 2)],
+    palette.flipDoor,
+  );
+  ctx.globalAlpha = 1;
+  const glow = at((d0 + d1) / 2, y1 + 0.2);
+  oval(ctx, glow[0], glow[1], 16 + pulse * 4, 6 + pulse * 2, palette.flipGlow);
+  // The front face, either side of the doorway.
+  stripedWall(ctx, { x: x0, y: y1 }, { x: d0, y: y1 }, 0, wall, 3, stripes);
+  stripedWall(ctx, { x: d1, y: y1 }, { x: x1, y: y1 }, 0, wall, 3, stripes);
+  stroke(
+    ctx,
+    [at(d0, y1, 0), at(d0, y1, wall), at(d1, y1, wall), at(d1, y1, 0)],
+    palette.gold,
+    1.6,
+  );
+
+  // A crooked spire of a roof, leaning off to one side.
+  const apex = at(prop.x + prop.w / 2 + 0.5, prop.y + prop.h / 2 - 0.6, wall + 52);
+  const strips = 6;
+  const roofFace = (a: Point, b: Point, colors: readonly string[]) => {
+    for (let i = 0; i < strips; i++) {
+      const p0 = at(lerp(a.x, b.x, i / strips), lerp(a.y, b.y, i / strips), wall);
+      const p1 = at(lerp(a.x, b.x, (i + 1) / strips), lerp(a.y, b.y, (i + 1) / strips), wall);
+      poly(ctx, [p0, p1, apex], colors[i % colors.length]);
+    }
+  };
+  roofFace({ x: x1 + 0.1, y: y1 + 0.1 }, { x: x1 + 0.1, y: y0 - 0.1 }, shades);
+  roofFace({ x: x0 - 0.1, y: y1 + 0.1 }, { x: x1 + 0.1, y: y1 + 0.1 }, stripes);
+  scallops(ctx, { x: x0 - 0.1, y: y1 + 0.1 }, { x: x1 + 0.1, y: y1 + 0.1 }, wall, 9, 2.5, [
+    palette.flipStripe,
+    palette.flipTent,
+  ]);
+
+  if (upsideDown) {
+    // Rips in the canvas, with the red glow showing through.
+    for (const [u, z, size] of [
+      [0.25, 10, 5],
+      [0.8, 14, 4],
+      [0.55, 34, 6],
+    ] as const) {
+      const p = at(lerp(x0, x1, u), y1, z);
+      poly(
+        ctx,
+        [
+          [p[0] - size, p[1] - size * 0.4],
+          [p[0] + size * 0.2, p[1] - size],
+          [p[0] + size, p[1] + size * 0.3],
+          [p[0] - size * 0.1, p[1] + size * 0.6],
+        ],
+        palette.black,
+      );
+      ctx.globalAlpha = pulse;
+      oval(ctx, p[0], p[1], size * 0.4, size * 0.3, palette.flipDoor);
+      ctx.globalAlpha = 1;
+    }
+  }
+  // A ringed eye at the tip, watching the midway.
+  oval(ctx, apex[0], apex[1] - 3, 4, 4, palette.gold);
+  oval(ctx, apex[0], apex[1] - 3, 2, 2, upsideDown ? palette.flipDoor : palette.ink);
+  flag(ctx, apex[0], apex[1] - 6, t, upsideDown ? palette.flipDoor : palette.gold);
+}
+
 function balloons(ctx: Ctx, prop: Prop, t: number) {
   const c = at(prop.x + 0.5, prop.y + 0.5);
   oval(ctx, c[0] + 2, c[1] + 1, 5, 2, palette.shadow);
@@ -1523,38 +1617,40 @@ function ferrisWheel(ctx: Ctx, prop: Prop, t: number) {
 
 // ── Booths ────────────────────────────────────────────────────────────────
 
-const BOOTH_SCHEMES = [
-  {
-    wall: palette.gold,
-    wallShade: palette.goldShade,
-    awning: [palette.blue, palette.cream],
-    awningShade: [palette.blueShade, palette.creamShade],
-  },
-  {
-    wall: palette.cream,
-    wallShade: palette.creamShade,
-    awning: [palette.red, palette.cream],
-    awningShade: [palette.redShade, palette.creamShade],
-  },
-  {
-    wall: palette.sky2,
-    wallShade: palette.blue,
-    awning: [palette.gold, palette.cream],
-    awningShade: [palette.goldShade, palette.creamShade],
-  },
-  {
-    wall: palette.pink,
-    wallShade: palette.pinkShade,
-    awning: [palette.red, palette.gold],
-    awningShade: [palette.redShade, palette.goldShade],
-  },
-] as const;
-const CLOSED_SCHEME = {
-  wall: palette.closed,
-  wallShade: palette.closedShade,
-  awning: [palette.closed, palette.metal],
-  awningShade: [palette.closedShade, palette.metalShade],
-} as const;
+const boothSchemes = () =>
+  [
+    {
+      wall: palette.gold,
+      wallShade: palette.goldShade,
+      awning: [palette.blue, palette.cream],
+      awningShade: [palette.blueShade, palette.creamShade],
+    },
+    {
+      wall: palette.cream,
+      wallShade: palette.creamShade,
+      awning: [palette.red, palette.cream],
+      awningShade: [palette.redShade, palette.creamShade],
+    },
+    {
+      wall: palette.sky2,
+      wallShade: palette.blue,
+      awning: [palette.gold, palette.cream],
+      awningShade: [palette.goldShade, palette.creamShade],
+    },
+    {
+      wall: palette.pink,
+      wallShade: palette.pinkShade,
+      awning: [palette.red, palette.gold],
+      awningShade: [palette.redShade, palette.goldShade],
+    },
+  ] as const;
+const closedScheme = () =>
+  ({
+    wall: palette.closed,
+    wallShade: palette.closedShade,
+    awning: [palette.closed, palette.metal],
+    awningShade: [palette.closedShade, palette.metalShade],
+  }) as const;
 
 const BOOTH_WALL = 34;
 /** How far above a booth's footprint its sign hangs. */
@@ -1572,7 +1668,8 @@ function target(ctx: Ctx, r: number) {
 
 function booth(ctx: Ctx, slot: BoothSlot, name: string, t: number, glow: boolean) {
   const open = slot.gameId !== undefined;
-  const scheme = open ? BOOTH_SCHEMES[slot.index % BOOTH_SCHEMES.length] : CLOSED_SCHEME;
+  const schemes = boothSchemes();
+  const scheme = open ? schemes[slot.index % schemes.length] : closedScheme();
   const x0 = slot.x + 0.15;
   const y0 = slot.y + 0.15;
   const s = 1.7;
@@ -1756,6 +1853,7 @@ const PROP_HEIGHTS: Record<Prop['kind'], number> = {
   billboard: BILLBOARD_HEIGHT + 40,
   'jack-o-lantern': 18,
   'food-stand': 110,
+  'flip-tent': 80,
 };
 
 /** Roughly the screen box a prop is drawn in. */
@@ -1791,13 +1889,13 @@ export function visitorLook(n: number): Look {
   };
 }
 
-export const PLAYER_LOOK: Look = {
+export const playerLook = (): Look => ({
   skin: palette.skins[0],
   hair: palette.hairs[2],
   shirt: palette.red,
   pants: palette.pants[0],
   cap: palette.gold,
-};
+});
 
 export function drawWalker(ctx: Ctx, walker: Walker, look: Look, player = false, t = 0) {
   const p = toScreen(walker.x, walker.y);
@@ -1870,6 +1968,25 @@ export function drawArch(ctx: Ctx, map: MidwayMap, t: number) {
 }
 
 // ── The sky ───────────────────────────────────────────────────────────────
+
+/** The sun over the right-side-up midway, with a soft glow and short rays. */
+export function drawSun(ctx: Ctx, x: number, y: number, r: number, t: number) {
+  oval(ctx, x, y, r * 2.2, r * 2.2, palette.sunGlow);
+  oval(ctx, x, y, r * 1.5, r * 1.5, palette.sunGlow);
+  ctx.strokeStyle = palette.sunShade;
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (let i = 0; i < 12; i++) {
+    const angle = (i / 12) * Math.PI * 2 + t * 0.1;
+    ctx.moveTo(x + Math.cos(angle) * r * 1.25, y + Math.sin(angle) * r * 1.25);
+    ctx.lineTo(x + Math.cos(angle) * r * 1.6, y + Math.sin(angle) * r * 1.6);
+  }
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+  oval(ctx, x, y, r, r, palette.sunShade);
+  oval(ctx, x - r * 0.1, y - r * 0.1, r * 0.85, r * 0.85, palette.sun);
+}
 
 /** The full moon over the midway, with a faint halo and a few craters. */
 export function drawMoon(ctx: Ctx, x: number, y: number, r: number) {
@@ -2032,12 +2149,12 @@ export function drawFloaters(ctx: Ctx, floaters: readonly Floater[]) {
 
 // ── Everything else ───────────────────────────────────────────────────────
 
-export function drawProp(ctx: Ctx, prop: Prop, t: number) {
+export function drawProp(ctx: Ctx, prop: Prop, t: number, world: MidwayWorld) {
   switch (prop.kind) {
     case 'big-top':
       return bigTop(ctx, prop, t);
     case 'round-tent': {
-      const colors = TENT_COLORS[prop.variant % TENT_COLORS.length];
+      const colors = TENT_COLORS[prop.variant % TENT_COLORS.length]();
       return roundTent(
         ctx,
         prop.x + prop.w / 2,
@@ -2076,6 +2193,8 @@ export function drawProp(ctx: Ctx, prop: Prop, t: number) {
       return jackOLantern(ctx, prop, t);
     case 'food-stand':
       return foodStand(ctx, prop, t);
+    case 'flip-tent':
+      return flipTent(ctx, prop, t, world);
   }
 }
 
