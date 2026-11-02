@@ -102,6 +102,44 @@ describe('layoutMidway', () => {
     }
   });
 
+  it('puts a giant food stand on the grass, clear of the avenue, booths and paths to them', () => {
+    for (const count of [0, 1, 4, 9, 15]) {
+      const map = layoutMidway(Array.from({ length: count }, (_, i) => `game-${i}`));
+      const stands = map.props.filter((p) => p.kind === 'food-stand');
+      expect(stands, `${count} games`).toHaveLength(1);
+      const stand = stands[0];
+      for (const cart of map.props.filter((p) => p.kind === 'cart')) {
+        expect(stand.w * stand.h).toBeGreaterThan(cart.w * cart.h);
+      }
+      for (const other of [...map.booths, ...map.props]) {
+        if (other === stand) continue;
+        const overlaps =
+          other.x < stand.x + stand.w &&
+          stand.x < other.x + other.w &&
+          other.y < stand.y + stand.h &&
+          stand.y < other.y + other.h;
+        expect(overlaps, `${count} games: overlaps ${JSON.stringify(other)}`).toBe(false);
+      }
+      for (let y = stand.y; y < stand.y + stand.h; y++) {
+        for (let x = stand.x; x < stand.x + stand.w; x++) {
+          expect(isBlocked(map, x, y)).toBe(true);
+          expect(map.ground[y * map.width + x]).toBe('grass');
+        }
+      }
+      for (let y = 6; y < map.height - 1; y++) {
+        expect(isBlocked(map, map.avenueX, y)).toBe(false);
+        expect(isBlocked(map, map.avenueX + 1, y)).toBe(false);
+      }
+      expect(canStand(map, map.spawn.x, map.spawn.y)).toBe(true);
+      for (const booth of map.booths) {
+        expect(
+          pathToBooth(map, map.spawn, booth),
+          `${count} games: booth ${booth.index}`,
+        ).toBeDefined();
+      }
+    }
+  });
+
   it('is the same on every visit', () => {
     expect(layoutMidway(['a'])).toEqual(layoutMidway(['a']));
   });
@@ -134,6 +172,14 @@ describe('walking', () => {
     expect(walker.y).toBeCloseTo(map.spawn.y - 0.25 * 4.2);
     expect(walker.walking).toBe(true);
     expect(walker.facing).toBe('back');
+  });
+
+  it("can't walk through the food stand", () => {
+    const map = layoutMidway(['water-cannon']);
+    const stand = map.props.find((p) => p.kind === 'food-stand')!;
+    const walker = createWalker({ x: stand.x + 1.5, y: stand.y + stand.h + 0.5 });
+    for (let i = 0; i < 60; i++) walk(map, walker, { x: 0, y: -1 }, 1 / 60);
+    expect(walker.y).toBeGreaterThanOrEqual(stand.y + stand.h + 0.3 - 1e-9);
   });
 
   it("can't walk through a booth", () => {

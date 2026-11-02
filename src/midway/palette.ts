@@ -59,6 +59,12 @@ export const palette = {
   pumpkinStem: '#4a6a2c',
   candle: colors.accent,
 
+  bun: '#d99a4e',
+  bunShade: '#a8692c',
+  patty: '#5a3320',
+  pattyShade: '#3d2014',
+  steam: 'rgba(244, 236, 200, 0.5)',
+
   skins: ['#f1c27d', '#c68642', '#8d5524', '#e0ac69', '#ffdbac'],
   hairs: ['#3b2219', '#1b1035', '#a55728', '#e6c35c', '#6b4429'],
   shirts: [colors.stripeA, '#6b3fa0', '#1a1226', colors.stripeB, '#7cc94f', colors.danger],
