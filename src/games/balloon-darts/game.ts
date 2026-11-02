@@ -262,7 +262,6 @@ export const balloonDarts: CarnivalGame = {
     canvas.style.cursor = 'none';
 
     let state = createState();
-    let scoreRecorded = false;
     const aim = { x: WIDTH / 2, y: HEIGHT / 2 };
 
     const toCanvas = (event: PointerEvent) => {
@@ -277,10 +276,12 @@ export const balloonDarts: CarnivalGame = {
       Object.assign(aim, toCanvas(event));
       if (state.phase === 'over') {
         state = createState();
-        scoreRecorded = false;
-      } else {
-        throwDart(state, aim.x, aim.y);
+        return;
       }
+      throwDart(state, aim.x, aim.y);
+      // Record as soon as the last dart lands, so a quick replay or leaving
+      // the booth before the next frame can't drop the round's score.
+      if (state.darts === 0) recordScore(balloonDarts.id, state.score);
     };
     canvas.addEventListener('pointermove', onMove);
     canvas.addEventListener('pointerdown', onDown);
@@ -292,10 +293,6 @@ export const balloonDarts: CarnivalGame = {
       const dt = Math.min((time - last) / 1000, 0.05);
       last = time;
       step(state, dt);
-      if (state.phase === 'over' && !scoreRecorded) {
-        recordScore(balloonDarts.id, state.score);
-        scoreRecorded = true;
-      }
       draw(ctx, state, aim);
       frame = requestAnimationFrame(loop);
     };
