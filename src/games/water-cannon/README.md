@@ -5,7 +5,7 @@ Soak the targets on the three rails before your tank runs dry.
 ## How to play
 
 - Move the mouse to aim the cannon, and click to fire a shot of water.
-- You have 15 shots. The game ends when the tank is empty and the last shot has landed.
+- You have 15 shots, unless the page URL sets another tank size (see Options). The game ends when the tank is empty and the last shot has landed.
 - Click again on the game over screen to play another round.
 
 ## Scoring
@@ -23,10 +23,12 @@ Your final score is saved to the carnival's score board when the game ends.
 ## Options
 
 Add `?shots=25` to the page URL to change the size of the tank, for example
-`http://localhost:5173/?shots=25#/play/water-cannon`.
+`http://localhost:5173/?shots=25#/play/water-cannon`. The value must be a whole
+number of at least 1; a missing or invalid value, such as `0`, `-5` or `lots`,
+gives the usual 15 shots. Restarting after game over keeps the same tank size.
 
 ## Files
 
-- `game.ts`: the game logic (`createState`, `fire`, `step`, `scoreForHit`) and the
+- `game.ts`: the game logic (`parseTankSize`, `createState`, `fire`, `step`, `scoreForHit`) and the
   `waterCannon` entry, the default export the midway finds.
 - `game.test.ts`: tests for the game logic.

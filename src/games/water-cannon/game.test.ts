@@ -5,6 +5,7 @@ import {
   createState,
   fire,
   isHit,
+  parseTankSize,
   scoreForHit,
   step,
   type Target,
@@ -18,6 +19,34 @@ describe('water cannon', () => {
     expect(state.tank).toBe(TANK_SIZE);
     expect(state.score).toBe(0);
     expect(state.phase).toBe('playing');
+  });
+
+  it('starts with a custom tank size when given one', () => {
+    const state = createState(25);
+    expect(state.tank).toBe(25);
+    expect(state.tankSize).toBe(25);
+  });
+
+  it('reads a whole number of shots as the tank size', () => {
+    expect(parseTankSize('25')).toBe(25);
+    expect(parseTankSize('1')).toBe(1);
+  });
+
+  it('falls back to the default tank size when shots is missing', () => {
+    expect(parseTankSize(null)).toBe(TANK_SIZE);
+    expect(parseTankSize(undefined)).toBe(TANK_SIZE);
+    expect(parseTankSize('')).toBe(TANK_SIZE);
+  });
+
+  it('falls back to the default tank size when shots is not a whole number', () => {
+    expect(parseTankSize('lots')).toBe(TANK_SIZE);
+    expect(parseTankSize('2.5')).toBe(TANK_SIZE);
+    expect(parseTankSize('25abc')).toBe(TANK_SIZE);
+  });
+
+  it('falls back to the default tank size when shots is zero or negative', () => {
+    expect(parseTankSize('0')).toBe(TANK_SIZE);
+    expect(parseTankSize('-5')).toBe(TANK_SIZE);
   });
 
   it('uses one shot of water per fire', () => {
