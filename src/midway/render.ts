@@ -1064,6 +1064,58 @@ function planter(ctx: Ctx, prop: Prop) {
   oval(ctx, c[0], c[1] - 17, 5, 5, palette.hedgeLight);
 }
 
+/** A carved pumpkin with a candle flickering inside. */
+function jackOLantern(ctx: Ctx, prop: Prop, t: number) {
+  const c = at(prop.x + 0.5, prop.y + 0.5);
+  const size = 1 - (prop.variant % 3) * 0.12;
+  const rx = 8 * size;
+  const ry = 6.5 * size;
+  const cy = c[1] - ry - 1;
+  oval(ctx, c[0] + 2, c[1] + 1, rx + 3, 3.5, palette.shadow);
+  oval(ctx, c[0] - rx * 0.45, cy, rx * 0.6, ry, palette.pumpkinShade);
+  oval(ctx, c[0] + rx * 0.45, cy, rx * 0.6, ry, palette.pumpkinShade);
+  oval(ctx, c[0], cy, rx * 0.6, ry, palette.pumpkin);
+  poly(
+    ctx,
+    [
+      [c[0] - 1, cy - ry + 1],
+      [c[0] + 1.5, cy - ry - 3],
+      [c[0] + 2.5, cy - ry - 2.5],
+      [c[0] + 1, cy - ry + 1],
+    ],
+    palette.pumpkinStem,
+  );
+  // The face glows brighter and dimmer as the candle flickers.
+  ctx.globalAlpha = 0.75 + Math.sin(t * 9 + prop.x * 3 + prop.y) * 0.25;
+  const eye = 2.2 * size;
+  for (const side of [-1, 1]) {
+    const ex = c[0] + side * rx * 0.4;
+    poly(
+      ctx,
+      [
+        [ex - eye, cy - 0.5],
+        [ex + eye, cy - 0.5],
+        [ex, cy - eye * 1.4],
+      ],
+      palette.candle,
+    );
+  }
+  const mouth = rx * 0.6;
+  poly(
+    ctx,
+    [
+      [c[0] - mouth, cy + 1.5],
+      [c[0] - mouth / 2, cy + 2.5],
+      [c[0], cy + 1.8],
+      [c[0] + mouth / 2, cy + 2.5],
+      [c[0] + mouth, cy + 1.5],
+      [c[0], cy + ry * 0.7],
+    ],
+    palette.candle,
+  );
+  ctx.globalAlpha = 1;
+}
+
 function balloons(ctx: Ctx, prop: Prop, t: number) {
   const c = at(prop.x + 0.5, prop.y + 0.5);
   oval(ctx, c[0] + 2, c[1] + 1, 5, 2, palette.shadow);
@@ -1572,6 +1624,7 @@ const PROP_HEIGHTS: Record<Prop['kind'], number> = {
   balloons: 52,
   'bunting-pole': 0,
   billboard: BILLBOARD_HEIGHT + 40,
+  'jack-o-lantern': 18,
 };
 
 /** Roughly the screen box a prop is drawn in. */
@@ -1687,6 +1740,16 @@ export function drawArch(ctx: Ctx, map: MidwayMap, t: number) {
 
 // ── The sky ───────────────────────────────────────────────────────────────
 
+/** The full moon over the midway, with a faint halo and a few craters. */
+export function drawMoon(ctx: Ctx, x: number, y: number, r: number) {
+  oval(ctx, x, y, r * 2.2, r * 2.2, palette.moonGlow);
+  oval(ctx, x, y, r * 1.5, r * 1.5, palette.moonGlow);
+  oval(ctx, x, y, r, r, palette.moon);
+  oval(ctx, x - r * 0.3, y - r * 0.25, r * 0.22, r * 0.22, palette.moonShade);
+  oval(ctx, x + r * 0.35, y + r * 0.1, r * 0.15, r * 0.15, palette.moonShade);
+  oval(ctx, x - r * 0.05, y + r * 0.45, r * 0.12, r * 0.12, palette.moonShade);
+}
+
 export interface Cloud {
   x: number;
   y: number;
@@ -1774,6 +1837,8 @@ export function drawProp(ctx: Ctx, prop: Prop, t: number) {
       return buntingPole(ctx, prop);
     case 'billboard':
       return billboard(ctx, prop, t);
+    case 'jack-o-lantern':
+      return jackOLantern(ctx, prop, t);
   }
 }
 
