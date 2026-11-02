@@ -49,7 +49,8 @@ export type PropKind =
   | 'balloons'
   | 'bunting-pole'
   | 'billboard'
-  | 'jack-o-lantern';
+  | 'jack-o-lantern'
+  | 'food-stand';
 
 export interface Prop extends Rect {
   kind: PropKind;
@@ -187,7 +188,9 @@ export function layoutMidway(gameIds: readonly string[]): MidwayMap {
   add('wagon', 2, side, 3, 1, 0);
   add('wagon', 2, side + 2, 3, 1, 1);
   add('cart', 6, side, 1, 1, 0);
-  add('bench', 5, side + 3);
+  add('bench', 5, side + 1);
+  // A giant food stand, a landmark across the grass from the left-hand booths.
+  add('food-stand', 2, side + 3, 4, 3);
   add('balloons', 1, side + 4);
   add('planter', 6, side + 5);
   add('peaked-tent', 18, side, 4, 3, 1);

@@ -1005,6 +1005,136 @@ function cart(ctx: Ctx, prop: Prop, t: number) {
   );
 }
 
+/** A giant food stand: a long counter under a striped awning, with a burger on the roof. */
+function foodStand(ctx: Ctx, prop: Prop, t: number) {
+  const x0 = prop.x + 0.2;
+  const y0 = prop.y + 0.2;
+  const x1 = prop.x + prop.w - 0.2;
+  const y1 = prop.y + prop.h - 0.35;
+  const w = x1 - x0;
+  const d = y1 - y0;
+  const wall = 40;
+
+  poly(ctx, rectPoints({ x: x0 + 0.35, y: y0 + 0.35, w, h: d }), palette.shadow);
+  box(ctx, x0, y0, w, d, 0, wall, palette.red, palette.red, palette.redShade);
+
+  // The serving window along the front, with two vendors behind the counter.
+  poly(
+    ctx,
+    [
+      at(x0 + 0.2, y1, 14),
+      at(x1 - 0.2, y1, 14),
+      at(x1 - 0.2, y1, wall - 6),
+      at(x0 + 0.2, y1, wall - 6),
+    ],
+    palette.opening,
+  );
+  for (const [i, s] of [0.3, 0.7].entries()) {
+    const p = at(lerp(x0, x1, s), y1, 4);
+    const look = visitorLook(prop.x + prop.y + i);
+    person(ctx, p[0], p[1], { ...look, shirt: palette.cream, cap: palette.red });
+  }
+  stripedWall(ctx, { x: x0, y: y1 }, { x: x1, y: y1 }, 0, 14, 16, [palette.cream, palette.red]);
+  box(
+    ctx,
+    x0 - 0.05,
+    y1 - 0.05,
+    w + 0.1,
+    0.3,
+    14,
+    2,
+    palette.woodLight,
+    palette.woodDark,
+    palette.woodDark,
+  );
+
+  // A roof slab, then a striped awning over the window.
+  box(
+    ctx,
+    x0 - 0.08,
+    y0 - 0.08,
+    w + 0.16,
+    d + 0.16,
+    wall,
+    4,
+    palette.gold,
+    palette.goldShade,
+    palette.goldShade,
+  );
+  const strips = 14;
+  const reach = 0.55;
+  for (let i = 0; i < strips; i++) {
+    const xa = lerp(x0 - 0.08, x1 + 0.08, i / strips);
+    const xb = lerp(x0 - 0.08, x1 + 0.08, (i + 1) / strips);
+    poly(
+      ctx,
+      [
+        at(xa, y1 + 0.08, wall),
+        at(xb, y1 + 0.08, wall),
+        at(xb, y1 + 0.08 + reach, wall - 9),
+        at(xa, y1 + 0.08 + reach, wall - 9),
+      ],
+      i % 2 === 0 ? palette.red : palette.cream,
+    );
+  }
+  scallops(
+    ctx,
+    { x: x0 - 0.08, y: y1 + 0.08 + reach },
+    { x: x1 + 0.08, y: y1 + 0.08 + reach },
+    wall - 9,
+    strips,
+    3,
+    [palette.red, palette.cream],
+  );
+
+  // The giant burger on the roof.
+  const [cx, cy] = at(x0 + w / 2, y0 + d / 2, wall + 4);
+  oval(ctx, cx, cy - 4, 30, 8, palette.bunShade);
+  oval(ctx, cx, cy - 7, 30, 7, palette.bun);
+  oval(ctx, cx, cy - 12, 32, 6, palette.pattyShade);
+  oval(ctx, cx, cy - 14, 31, 6, palette.patty);
+  for (let i = 0; i < 7; i++) oval(ctx, cx - 27 + i * 9, cy - 17, 6, 3, palette.pink);
+  for (let i = 0; i < 4; i++) oval(ctx, cx - 18 + i * 12, cy - 18, 6, 2.5, palette.gold);
+  ctx.fillStyle = palette.bunShade;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy - 19, 30, 20, 0, Math.PI, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = palette.bun;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy - 20, 28, 18, 0, Math.PI, Math.PI * 2);
+  ctx.fill();
+  for (let i = 0; i < 9; i++)
+    oval(
+      ctx,
+      cx - 16 + (i % 5) * 8 + (i > 4 ? 4 : 0),
+      cy - 28 - (i > 4 ? 6 : 0),
+      1.5,
+      0.8,
+      palette.cream,
+    );
+
+  // Steam rising off the burger.
+  for (let i = 0; i < 3; i++) {
+    const rise = (t * 0.6 + i / 3) % 1;
+    ctx.globalAlpha = 1 - rise;
+    oval(
+      ctx,
+      cx - 12 + i * 12 + Math.sin(t * 2 + i) * 2,
+      cy - 40 - rise * 18,
+      3 + rise * 3,
+      2 + rise * 2,
+      palette.steam,
+    );
+  }
+  ctx.globalAlpha = 1;
+
+  // A big bobbing FOOD sign on the front.
+  const sign = at(x0 + w / 2, y1 + 0.1, wall + 8 + Math.sin(t * 2) * 1.5);
+  onPlane(ctx, sign, () =>
+    signBoard(ctx, 'FOOD', 56, 16, { board: palette.gold, edge: palette.red, text: palette.red }),
+  );
+}
+
 function ticketBooth(ctx: Ctx, prop: Prop) {
   const x = prop.x + 0.15;
   const y = prop.y + 0.15;
@@ -1625,6 +1755,7 @@ const PROP_HEIGHTS: Record<Prop['kind'], number> = {
   'bunting-pole': 0,
   billboard: BILLBOARD_HEIGHT + 40,
   'jack-o-lantern': 18,
+  'food-stand': 110,
 };
 
 /** Roughly the screen box a prop is drawn in. */
@@ -1839,6 +1970,8 @@ export function drawProp(ctx: Ctx, prop: Prop, t: number) {
       return billboard(ctx, prop, t);
     case 'jack-o-lantern':
       return jackOLantern(ctx, prop, t);
+    case 'food-stand':
+      return foodStand(ctx, prop, t);
   }
 }
 
