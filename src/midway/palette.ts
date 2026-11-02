@@ -19,6 +19,12 @@ export const palette = {
   moonShade: '#d8cc9c',
   moonGlow: 'rgba(244, 236, 200, 0.12)',
 
+  monster: '#120a1e',
+  monsterMaw: '#5a0d1c',
+  monsterGlow: 'rgba(200, 30, 50, 0.18)',
+  monsterTeeth: '#ffb3a1',
+  spore: 'rgba(255, 90, 80, 0.75)',
+
   grass: '#2d4228',
   grassDark: '#1f311c',
   grassEdge: '#1a2a17',
