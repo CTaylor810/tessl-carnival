@@ -1881,6 +1881,110 @@ export function drawMoon(ctx: Ctx, x: number, y: number, r: number) {
   oval(ctx, x - r * 0.05, y + r * 0.45, r * 0.12, r * 0.12, palette.moonShade);
 }
 
+/**
+ * The thing from the other side, rising behind the horizon: a tall, thin
+ * silhouette with spindly arms, and a head that splits open like a flower to
+ * show rings of tiny glowing teeth. `x`, `y` is where it meets the horizon and
+ * `size` is how tall it stands. Pass a still `t` for no movement.
+ */
+export function drawMonster(ctx: Ctx, x: number, y: number, size: number, t: number) {
+  const u = size / 100;
+  // Petals open and close every few seconds, eased so they linger shut.
+  const open = (1 - Math.cos((t * Math.PI * 2) / 7)) / 2;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(Math.sin(t * 0.35) * 0.04);
+
+  // A faint glow round the head, brighter as it opens.
+  oval(ctx, 0, -80 * u, (16 + open * 10) * u, (16 + open * 10) * u, palette.monsterGlow);
+  oval(ctx, 0, -80 * u, (9 + open * 6) * u, (9 + open * 6) * u, palette.monsterGlow);
+
+  // The body: narrow hips below the horizon, a ribbed chest and a long neck.
+  ctx.fillStyle = palette.monster;
+  ctx.beginPath();
+  ctx.moveTo(-9 * u, 10 * u);
+  ctx.quadraticCurveTo(-6 * u, -30 * u, -12 * u, -55 * u);
+  ctx.quadraticCurveTo(-6 * u, -64 * u, -2.5 * u, -76 * u);
+  ctx.lineTo(2.5 * u, -76 * u);
+  ctx.quadraticCurveTo(6 * u, -64 * u, 12 * u, -55 * u);
+  ctx.quadraticCurveTo(6 * u, -30 * u, 9 * u, 10 * u);
+  ctx.closePath();
+  ctx.fill();
+
+  // Long arms bent at the elbow, with three thin fingers each.
+  ctx.strokeStyle = palette.monster;
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 2.6 * u;
+  const lift = Math.sin(t * 0.5) * 4 * u;
+  ctx.beginPath();
+  for (const side of [-1, 1]) {
+    const reach = side * lift;
+    const hand: Pt = [side * 46 * u, -18 * u - reach];
+    ctx.moveTo(side * 10 * u, -54 * u);
+    ctx.quadraticCurveTo(side * 30 * u, -78 * u - reach, side * 38 * u, -56 * u - reach);
+    ctx.lineTo(hand[0], hand[1]);
+    for (let f = -1; f <= 1; f++) {
+      ctx.moveTo(hand[0], hand[1]);
+      ctx.lineTo(hand[0] + (side * 3 + f * 3) * u, hand[1] + 9 * u);
+    }
+  }
+  ctx.stroke();
+  ctx.lineCap = 'butt';
+
+  // The head: petals that fan out from the top of the neck.
+  const petals = 5;
+  const spread = 0.12 + open * 0.42;
+  const tips: Pt[] = [];
+  for (let i = 0; i < petals; i++) {
+    const angle = -Math.PI / 2 + (i - (petals - 1) / 2) * spread;
+    const len = 22 * u;
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+    const tip: Pt = [dx * len, -80 * u + dy * len];
+    tips.push(tip);
+    const mid: Pt = [dx * len * 0.5, -80 * u + dy * len * 0.5];
+    const w = 6 * u;
+    ctx.fillStyle = palette.monster;
+    ctx.beginPath();
+    ctx.moveTo(0, -78 * u);
+    ctx.quadraticCurveTo(mid[0] - dy * w, mid[1] + dx * w, tip[0], tip[1]);
+    ctx.quadraticCurveTo(mid[0] + dy * w, mid[1] - dx * w, 0, -78 * u);
+    ctx.fill();
+  }
+
+  // Inside the open head: a dark red maw ringed with tiny glowing teeth.
+  if (open > 0.15) {
+    ctx.globalAlpha = Math.min(1, (open - 0.15) * 2);
+    oval(ctx, 0, -84 * u, 5 * open * u, 7 * open * u, palette.monsterMaw);
+    ctx.fillStyle = palette.monsterTeeth;
+    ctx.beginPath();
+    for (const tip of tips) {
+      for (const k of [0.3, 0.45, 0.6]) {
+        const tx = tip[0] * k;
+        const ty = -80 * u + (tip[1] + 80 * u) * k;
+        ctx.moveTo(tx + 0.7 * u, ty);
+        ctx.arc(tx, ty, 0.7 * u, 0, Math.PI * 2);
+      }
+    }
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+
+  // Red spores drifting up from it into the sky.
+  ctx.fillStyle = palette.spore;
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const rise = (i * 23 + t * 5) % 140;
+    const sx = x + (((i * 37) % 140) - 70) * u + Math.sin(t * 0.6 + i) * 5 * u;
+    const sy = y - (20 + rise) * u;
+    const r = (0.6 + (i % 3) * 0.3) * u;
+    ctx.moveTo(sx + r, sy);
+    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+  }
+  ctx.fill();
+}
+
 export interface Cloud {
   x: number;
   y: number;

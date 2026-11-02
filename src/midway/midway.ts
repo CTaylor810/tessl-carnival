@@ -11,6 +11,7 @@ import {
   drawFrontHedge,
   drawField,
   drawGroundLayer,
+  drawMonster,
   drawMoon,
   drawProp,
   drawWalker,
@@ -262,7 +263,8 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
   };
 
   const draw = (t: number) => {
-    // The night sky, the moon, and clouds drifting slowly behind the midway.
+    // The night sky, the moon, something huge rising behind the horizon, and
+    // clouds drifting slowly in front of it.
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const horizon = (HORIZON - camera.y) * zoom;
     const sky = ctx.createLinearGradient(0, horizon - 260 * zoom, 0, horizon);
@@ -273,6 +275,7 @@ export function startMidway(canvas: HTMLCanvasElement, options: MidwayOptions): 
 
     ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, 0, 0);
     drawMoon(ctx, view.w * 0.78 - camera.x * 0.05, HORIZON - camera.y - 120, 18);
+    drawMonster(ctx, view.w * 0.32 - camera.x * 0.15, HORIZON - camera.y, 140, calm ? 0 : t);
     const span = view.w + 200;
     for (const cloud of clouds) {
       const x =
