@@ -40,6 +40,12 @@ Read `src/games/water-cannon/game.ts` first: it is the pattern to copy.
 
 5. **Report the score once per round** with `recordScore(ringToss.id, score)`
    from `src/carnival`, when the round ends. Never use local storage directly.
+   Record where the round ends. If `step(state, dt)` ends it (a timer runs out
+   or the last shot lands), record in the animation loop like the water cannon.
+   If a player action ends it (the last throw or swing, in a pointer or key
+   handler), call `recordScore` in that handler right after the action, as
+   `src/games/balloon-darts/game.ts` does. A loop that records a frame later
+   loses the score when the player clicks replay or leaves the booth first.
 6. **Draw with the theme.** Every colour is `theme.colors.*` and every font is
    `canvasFont(...)`. If the game needs a colour the theme lacks, use the closest
    theme colour and say so in the pull request. Adding a colour to
