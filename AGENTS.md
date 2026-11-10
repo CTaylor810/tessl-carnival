@@ -98,8 +98,9 @@ that `src/games/index.ts` finds.
    default export. `src/games/index.ts` finds it from there. The folder name and
    the game's `id` match.
 2. **Every game reports scores through the shared scores module.** Call
-   `recordScore(game.id, score)` from `src/carnival` once, when a round ends, in the same code path that ends the round. No
-   game reads or writes local storage itself, or keeps its own high score table.
+   `recordScore(game.id, score)` from `src/carnival` once, when a round ends,
+   in the same code path that ends the round. No game reads or writes local
+   storage itself, or keeps its own high score table.
 3. **Every game draws with the carnival's theme.** Colours, fonts and sizes come
    from `theme` and `canvasFont` in `src/carnival/theme.ts`. No hex colours or
    font strings inside a game.
