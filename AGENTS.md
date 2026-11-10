@@ -90,6 +90,12 @@ that `src/games/index.ts` finds.
   the midway shows about a game, such as scores, usually go there.
 - `src/midway/` is the map itself: layout, movement and drawing. Keep it plain 2D
   canvas so it stays fast on slow laptops.
+- Props and booths are drawn through `faded()` in `src/midway/midway.ts`, which
+  lowers `ctx.globalAlpha` to 0.4 when they would hide the player. A drawing
+  function in `render.ts` that changes opacity must scale the alpha it was given
+  and put it back afterwards, or use `ctx.save()`/`ctx.restore()`. Never assign
+  an absolute alpha or reset it to 1 inside a prop or booth.
+  `src/midway/render.test.ts` checks every prop kind for this.
 
 ## House rules
 

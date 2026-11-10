@@ -16,6 +16,14 @@ import {
 /**
  * Flat, isometric vector drawing for the midway, in world pixels. The caller
  * sets up the canvas transform for the camera and zoom.
+ *
+ * Props, booths and the arch are drawn through `faded()` in midway.ts, which
+ * lowers `ctx.globalAlpha` to 0.4 when they would hide the player. A drawing
+ * function here that changes opacity must scale the alpha it was given and put
+ * it back afterwards (`const base = ctx.globalAlpha; ctx.globalAlpha = base * k;
+ * ... ctx.globalAlpha = base;`), or use `ctx.save()`/`ctx.restore()`. Never
+ * assign an absolute alpha or reset it to 1 inside a prop or booth.
+ * render.test.ts checks every prop kind for this.
  */
 
 type Ctx = CanvasRenderingContext2D;
@@ -1115,9 +1123,10 @@ function foodStand(ctx: Ctx, prop: Prop, t: number) {
     );
 
   // Steam rising off the burger.
+  const base = ctx.globalAlpha;
   for (let i = 0; i < 3; i++) {
     const rise = (t * 0.6 + i / 3) % 1;
-    ctx.globalAlpha = 1 - rise;
+    ctx.globalAlpha = base * (1 - rise);
     oval(
       ctx,
       cx - 12 + i * 12 + Math.sin(t * 2 + i) * 2,
@@ -1127,7 +1136,7 @@ function foodStand(ctx: Ctx, prop: Prop, t: number) {
       palette.steam,
     );
   }
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = base;
 
   // A big bobbing FOOD sign on the front.
   const sign = at(x0 + w / 2, y1 + 0.1, wall + 8 + Math.sin(t * 2) * 1.5);
@@ -1217,7 +1226,8 @@ function jackOLantern(ctx: Ctx, prop: Prop, t: number) {
     palette.pumpkinStem,
   );
   // The face glows brighter and dimmer as the candle flickers.
-  ctx.globalAlpha = 0.75 + Math.sin(t * 9 + prop.x * 3 + prop.y) * 0.25;
+  const base = ctx.globalAlpha;
+  ctx.globalAlpha = base * (0.75 + Math.sin(t * 9 + prop.x * 3 + prop.y) * 0.25);
   const eye = 2.2 * size;
   for (const side of [-1, 1]) {
     const ex = c[0] + side * rx * 0.4;
@@ -1244,7 +1254,7 @@ function jackOLantern(ctx: Ctx, prop: Prop, t: number) {
     ],
     palette.candle,
   );
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = base;
 }
 
 /**
@@ -1270,18 +1280,19 @@ function flipTent(ctx: Ctx, prop: Prop, t: number, world: MidwayWorld) {
   stripedWall(ctx, { x: x1, y: y1 }, { x: x1, y: y0 }, 0, wall, 9, shades);
   // The doorway, set back into the tent, glowing from inside.
   const pulse = 0.6 + Math.sin(t * 3) * 0.4;
+  const base = ctx.globalAlpha;
   poly(
     ctx,
     [at(d0, y1, 0), at(d1, y1, 0), at(d1, y1, wall - 2), at(d0, y1, wall - 2)],
     palette.opening,
   );
-  ctx.globalAlpha = pulse;
+  ctx.globalAlpha = base * pulse;
   poly(
     ctx,
     [at(d0 + 0.15, y1, 0), at(d1 - 0.15, y1, 0), at((d0 + d1) / 2, y1, wall + 2)],
     palette.flipDoor,
   );
-  ctx.globalAlpha = 1;
+  ctx.globalAlpha = base;
   const glow = at((d0 + d1) / 2, y1 + 0.2);
   oval(ctx, glow[0], glow[1], 16 + pulse * 4, 6 + pulse * 2, palette.flipGlow);
   // The front face, either side of the doorway.
@@ -1329,9 +1340,9 @@ function flipTent(ctx: Ctx, prop: Prop, t: number, world: MidwayWorld) {
         ],
         palette.black,
       );
-      ctx.globalAlpha = pulse;
+      ctx.globalAlpha = base * pulse;
       oval(ctx, p[0], p[1], size * 0.4, size * 0.3, palette.flipDoor);
-      ctx.globalAlpha = 1;
+      ctx.globalAlpha = base;
     }
   }
   // A ringed eye at the tip, watching the midway.
