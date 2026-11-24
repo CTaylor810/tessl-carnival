@@ -43,7 +43,11 @@ Read `src/games/water-cannon/game.ts` first: it is the pattern to copy.
 6. **Draw with the theme.** Every colour is `theme.colors.*` and every font is
    `canvasFont(...)`. If the game needs a colour the theme lacks, use the closest
    theme colour and say so in the pull request. Adding a colour to
-   `src/carnival/theme.ts` is its own change, never part of a game's.
+   `src/carnival/theme.ts` is its own change, never part of a game's. Read
+   colours inside the function that draws, with `const { colors } = theme;` as
+   the water cannon does. `setThemeMode` swaps the values in `theme.colors` when
+   the flip tent changes worlds, so a colour copied into a module-level constant
+   keeps whichever mode was current when the file loaded.
 7. **Don't touch `src/games/index.ts`.** It finds every folder whose `game.ts`
    has a default export, so the new game registers itself.
 8. **Test the logic** in `game.test.ts`: the starting state, scoring, how a round
