@@ -102,7 +102,9 @@ that `src/games/index.ts` finds.
    game reads or writes local storage itself, or keeps its own high score table.
 3. **Every game draws with the carnival's theme.** Colours, fonts and sizes come
    from `theme` and `canvasFont` in `src/carnival/theme.ts`. No hex colours or
-   font strings inside a game.
+   font strings inside a game. Read `theme.colors` while drawing, never into
+   module-level constants: the theme switches between day and Halloween at
+   runtime.
 4. **Game logic is testable without a browser.** Keep state changes (scoring,
    moving, hits) in plain exported functions, and test them in `game.test.ts`.
    Only `start` touches the canvas, the DOM or `requestAnimationFrame`.
